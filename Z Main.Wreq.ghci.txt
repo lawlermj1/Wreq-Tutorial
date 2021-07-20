@@ -1,0 +1,243 @@
+
+:cd C:\Users\lawle\Documents\GitHub\Wreq-Tutorial
+:load Main.Wreq.Token 
+
+:load Main.Wreq.Tutorial
+
+:load Main.Cassava
+
+-- interactive commands 
+
+:set -XOverloadedStrings
+:set -XDeriveGeneric 
+
+:set -package lens 
+:set -package lens-aeson 
+-- -> package flags have changed, resetting and loading new packages...
+
+
+-- reads web page  
+ r <- get "http://httpbin.org/get"
+ 
+ :type r 
+-- -> r :: Response Data.ByteString.Lazy.Internal.ByteString
+
+r ^. responseStatus
+-- -> Status {statusCode = 200, statusMessage = "OK"}
+
+r ^. responseStatus . statusCode
+-- -> 200 
+
+let opts = defaults & param "foo" .~ ["bar", "quux"]
+r <- getWith opts "http://httpbin.org/get"
+r ^. responseBody . key "url" . _String
+-- -> "http://httpbin.org/get?foo=bar&foo=quux" 
+
+r ^. responseBody
+-- -> "{\n  \"args\": {}, \n  \"headers\": {\n    \"Accept-Encoding\": \"gzip\", \n    \"Host\": \"httpbin.org\", \n    \"User-Agent\": \"haskell wreq-0.5.3.3\", \n    \"X-Amzn-Trace-Id\": \"Root=1-60e52d8d-395d16412292e7c550d83862\"\n  }, \n  \"origin\": \"1.157.69.117\", \n  \"url\": \"http://httpbin.org/get\"\n}\n"
+
+
+
+r <- asJSON =<< get "http://httpbin.org/get" :: IO Resp
+
+-----------
+
+Main.Wreq.hs:17:1: error:
+    Could not load module `Control.Lens'
+    It is a member of the hidden package `lens-5.0.1'.
+    You can run `:set -package lens' to expose it.
+    (Note: this unloads all the modules in the current scope.)
+    Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+   |
+17 | import Control.Lens
+   | ^^^^^^^^^^^^^^^^^^^
+
+Main.Wreq.hs:18:1: error:
+    Could not load module `Data.Aeson.Lens'
+    It is a member of the hidden package `lens-aeson-1.1.1'.
+    You can run `:set -package lens-aeson' to expose it.
+    (Note: this unloads all the modules in the current scope.)
+    Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+   |
+18 | import Data.Aeson.Lens (_String, key)
+
+In msys2_shell 
+sudo ghc-pkg expose lens 
+no good 
+
+In PS 
+
+PS C:\Users\lawle> ghc-pkg expose lens 
+ghc-pkg : ghc-pkg.exe: cannot find package lens
+At line:1 char:1
++ ghc-pkg expose lens
++ ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ghc-pkg.exe: cannot find package  
+   lens:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+	
+fix:	cabal install ...
+-----------
+
+r <- asJSON =<< get "http://httpbin.org/get" :: IO Resp
+
+<interactive>:24:6: error:
+    * No instance for (aeson-1.5.6.0:Data.Aeson.Types.FromJSON.FromJSON
+                         Value)
+        arising from a use of `asJSON'
+      There are instances for similar types:
+        instance aeson-1.5.6.0:Data.Aeson.Types.FromJSON.FromJSON
+                   aeson-1.5.6.0:Data.Aeson.Types.Internal.Value
+          -- Defined in `aeson-1.5.6.0:Data.Aeson.Types.FromJSON'
+    * In the first argument of `(=<<)', namely `asJSON'
+      In the first argument of `GHC.GHCi.ghciStepIO ::
+                                  forall a. IO a -> IO a', namely
+        `(asJSON =<< get "http://httpbin.org/get" :: IO Resp)'
+      In a stmt of an interactive GHCi command:
+        r <- GHC.GHCi.ghciStepIO :: forall a. IO a -> IO a
+             (asJSON =<< get "http://httpbin.org/get" :: IO Resp)
+			 
+FromJSON asJSON
+
+No instance for FromJSON arising from a use of `asJSON'
+
+This was cuased by the 2 aesons!!! 
+Delete Store 
+cabal clean 
+then 
+cabal install  --lib wreq 
+
+-> all good 
+
+------------------
+after 
+cabal install --lib aeson
+
+Main.Wreq.hs:21:1: error:
+    Ambiguous module name `Data.Aeson':
+      it was found in multiple packages: aeson-1.5.6.0 aeson-1.5.6.0
+   |
+21 | import Data.Aeson (FromJSON)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Failed, no modules loaded.
+
+
+    Ambiguous module name : it was found in multiple packages 
+	
+ghc-pkg unregister --force aeson-1.5.6.0
+
+-------------------
+
+  y <- get "http://httpbin.org/basic-auth/user/pass" 
+  
+ -> 
+ 
+*** Exception: HttpExceptionRequest Request {
+  host                 = "httpbin.org"
+  port                 = 80
+  secure               = False
+  requestHeaders       = [("User-Agent","haskell wreq-0.5.3.3")]
+  path                 = "/basic-auth/user/pass"
+  queryString          = ""
+  method               = "GET"
+  proxy                = Nothing
+  rawBody              = False
+  redirectCount        = 10
+  responseTimeout      = ResponseTimeoutDefault
+  requestVersion       = HTTP/1.1
+  proxySecureMode      = ProxySecureWithConnect
+}
+ (StatusCodeException (Response {responseStatus = Status {statusCode = 401, statusMessage = "UNAUTHORIZED"}, responseVersion = HTTP/1.1, responseHeaders = [("Date","Thu, 08 Jul 2021 04:02:34 GMT"),("Content-Length","0"),("Connection","keep-alive"),("Server","gunicorn/19.9.0"),("WWW-Authenticate","Basic realm=\"Fake Realm\""),("Access-Control-Allow-Origin","*"),("Access-Control-Allow-Credentials","true")], responseBody = (), responseCookieJar = CJ {expose = []}, responseClose' = ResponseClose, responseOriginalRequest = Request {
+  host                 = "httpbin.org"
+  port                 = 80
+  secure               = False
+  requestHeaders       = [("User-Agent","haskell wreq-0.5.3.3")]
+  path                 = "/basic-auth/user/pass"
+  queryString          = ""
+  method               = "GET"
+  proxy                = Nothing
+  rawBody              = False
+  redirectCount        = 10
+  responseTimeout      = ResponseTimeoutDefault
+  requestVersion       = HTTP/1.1
+  proxySecureMode      = ProxySecureWithConnect
+}
+}) "")
+
+------------------
+Success! 
+
+Response {responseStatus = Status {statusCode = 200, statusMessage = "OK"}, responseVersion = HTTP/1.1, responseHeaders = [("Date","Thu, 08 Jul 2021 04:23:25 GMT"),("Content-Type","application/json"),("Content-Length","47"),("Connection","keep-alive"),("Server","gunicorn/19.9.0"),("Access-Control-Allow-Origin","*"),("Access-Control-Allow-Credentials","true")], responseBody = "{\n  \"authenticated\": true, \n  \"user\": \"user\"\n}\n", responseCookieJar = CJ {expose = []}, responseClose' = ResponseClose, responseOriginalRequest = Request {
+  host                 = "httpbin.org"
+  port                 = 80
+  secure               = False
+  requestHeaders       = [("Authorization","<REDACTED>"),("User-Agent","haskell wreq-0.5.3.3")]
+  path                 = "/basic-auth/user/pass"
+  queryString          = ""
+  method               = "GET"
+  proxy                = Nothing
+  rawBody              = False
+  redirectCount        = 10
+  responseTimeout      = ResponseTimeoutDefault
+  requestVersion       = HTTP/1.1
+  proxySecureMode      = ProxySecureWithConnect
+}
+}
+
+------------------
+AWS failure 
+
+*** Exception: HttpExceptionRequest Request {
+  host                 = "sqs.us-east-1.amazonaws.com"
+  port                 = 443
+  secure               = True
+  requestHeaders       = [("host","sqs.us-east-1.amazonaws.com"),("Authorization","<REDACTED>"),("x-amz-date","20210708T043254Z"),("Accept","application/json"),("User-Agent","haskell wreq-0.5.3.3")]
+  path                 = "/"
+  queryString          = "?Action=ListQueues"
+  method               = "GET"
+  proxy                = Nothing
+  rawBody              = False
+  redirectCount        = 10
+  responseTimeout      = ResponseTimeoutDefault
+  requestVersion       = HTTP/1.1
+  proxySecureMode      = ProxySecureWithConnect
+}
+ (StatusCodeException (Response {responseStatus = Status {statusCode = 403, statusMessage = "Forbidden"}, responseVersion = HTTP/1.1, responseHeaders = [("x-amzn-RequestId","295d6c1e-9513-54a5-973f-357e172ba0d0"),("Date","Thu, 08 Jul 2021 04:32:56 GMT"),("Connection","close"),("Content-Type","application/json"),("Content-Length","175")], responseBody = (), responseCookieJar = CJ {expose = []}, responseClose' = ResponseClose, responseOriginalRequest = Request {
+  host                 = "sqs.us-east-1.amazonaws.com"
+  port                 = 443
+  secure               = True
+  requestHeaders       = [("host","sqs.us-east-1.amazonaws.com"),("Authorization","<REDACTED>"),("x-amz-date","20210708T043254Z"),("Accept","application/json"),("User-Agent","haskell wreq-0.5.3.3")]
+  path                 = "/"
+  queryString          = "?Action=ListQueues"
+  method               = "GET"
+  proxy                = Nothing
+  rawBody              = False
+  redirectCount        = 10
+  responseTimeout      = ResponseTimeoutDefault
+  requestVersion       = HTTP/1.1
+  proxySecureMode      = ProxySecureWithConnect
+}
+}) "{\"Error\":{\"Code\":\"InvalidClientTokenId\",\"Message\":\"The security token included in the request is invalid.\",\"Type\":\"Sender\"},\"RequestId\":\"295d6c1e-9513-54a5-973f-357e172ba0d0\"}")
+
+--------------
+
+Main.Wreq.hs:55:14: error:
+    * Couldn't match type `http-types-0.12.3:Network.HTTP.Types.Status.Status'
+                     with `http-client-0.7.8:Network.HTTP.Client.Types.Response ()'
+      Expected: Getting
+                  Int (http-client-0.7.8:Network.HTTP.Client.Types.Response ()) Int
+        Actual: (Int -> Const Int Int)
+                -> http-types-0.12.3:Network.HTTP.Types.Status.Status
+                -> Const Int http-types-0.12.3:Network.HTTP.Types.Status.Status
+    * In the second argument of `(^.)', namely `statusCode'
+      In the first argument of `(==)', namely `s ^. statusCode'
+      In the expression: s ^. statusCode == 401
+   |
+55 |       | s ^. statusCode == 401 = getWith authopts authurl
+
+-------------- 
+
+
+No instance for (Monoid Data.Aeson.Types.Internal.Value) arising from a use of `key'
+--------------
+cabal install fails - After searching the rest of the dependency tree exhaustively, these were the- goals I've had most trouble fulfilling: process, ghc
